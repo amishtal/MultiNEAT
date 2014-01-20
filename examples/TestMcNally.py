@@ -1,6 +1,8 @@
 #!/usr/bin/python
 from __future__ import division
 
+import argparse
+import json
 import os
 import sys
 import time
@@ -18,25 +20,21 @@ from scipy.stats import nbinom
 import h5py
 
 
-# IPD
-# T > R > P > S
-#DEFECTOR_PAYOFF           = 7 # T
-#MUTUAL_COOPERATION_PAYOFF = 6 # R
-#MUTUAL_DEFECTION_PAYOFF   = 2 # P
-#COOPERATOR_PAYOFF         = 1 # S
-
-# ISD
-# T > R > S > P
-DEFECTOR_PAYOFF           = 8 # T
-MUTUAL_COOPERATION_PAYOFF = 5 # R
-MUTUAL_DEFECTION_PAYOFF   = 1 # P
-COOPERATOR_PAYOFF         = 2 # S
+# This isn't necessarily the default values,
+# just need something to initialize these
+# variables
+DEFECTOR_PAYOFF           = 7 # T
+MUTUAL_COOPERATION_PAYOFF = 6 # R
+MUTUAL_DEFECTION_PAYOFF   = 2 # P
+COOPERATOR_PAYOFF         = 1 # S
 
 DEFECT = 0
 COOPERATE = 1
 
 PAYOFFS = [[MUTUAL_DEFECTION_PAYOFF, DEFECTOR_PAYOFF],
            [COOPERATOR_PAYOFF, MUTUAL_COOPERATION_PAYOFF]]
+
+INTEL_PENALTY = 0.01
 
 # These classes aren't used yet..
 class CoopDefectGame(object):
@@ -184,7 +182,8 @@ class NeuralNetworkAgent(Agent):
         self.net.Activate()
         outputs = self.net.Output()
 
-        if outputs[0] > 0.5:
+        r = np.random.rand()
+        if r < outputs[0]:
             return COOPERATE
         else:
             return DEFECT
@@ -261,7 +260,7 @@ def test_agent(agent):
 
     return np.argmin(dists), np.sum(agent_moves) / float(len(agent_moves))
 
-def evaluate_ipd(genomes):
+def evaluate_iterated_game(genomes):
     # When using this evaluation function, a list of lists of genomes
     # should be provided to the main 'evaluate' function.
     agents = []
@@ -290,67 +289,20 @@ def evaluate_ipd(genomes):
             n_total_rounds += 1.0
 
     fitness = p1.get_total_payoff() / n_total_rounds
-    fitness -= 0.02*(len(p1.net.neurons))
+    fitness -= INTEL_PENALTY*(len(p1.net.neurons))
     return fitness
 
-# Look at the files 'MultiNEAT/lib/Parameters.cpp' and
-# 'MultiNEAT/lib/Parameters.h' for more information on
-# these parametes.
-params = NEAT.Parameters()
-#print dir(params)
-params.PopulationSize = 200
-params.AllowClones = True
-params.DynamicCompatibility = True
-params.CompatTreshold = 2.0
-#params.CompatTreshold = 10.0
-params.CompatThesholdModifier = 0.3
-#params.CompatThesholdModifier = 1.0
-params.YoungAgeTreshold = 15
-params.SpeciesMaxStagnation = 100
-params.OldAgeTreshold = 35
-#params.MinSpecies = 5
-params.MinSpecies = 5
-#params.MaxSpecies = 25
-params.MaxSpecies = 25
-params.RouletteWheelSelection = True
-params.RecurrentProb = 0.20
-params.OverallMutationRate = 0.33
-
-params.MutateWeightsProb = 0.90
-
-params.WeightMutationMaxPower = 5.0
-params.WeightReplacementMaxPower = 5.0
-params.MutateWeightsSevereProb = 0.5
-params.WeightMutationRate = 0.75
-
-params.MaxWeight = 100
-
-#params.MutateAddNeuronProb = 0.01
-params.MutateAddNeuronProb = 0.01
-#params.MutateAddLinkProb = 0.05
-params.MutateAddLinkProb = 0.05
-#params.MutateRemLinkProb = 0.05
-params.MutateRemLinkProb = 0.05
-params.MutateRemSimpleNeuronProb = 0.01
-
-rng = NEAT.RNG()
-rng.TimeSeed()
-#rng.Seed(0)
-
-def run_experiment(save_file=None):
+def run_experiment(n_generations, params, save_freq, save_file=None):
     # NEAT.Genome(uint a_ID, uint a_NumInputs, uint a_NumHidden,
     #             uint a_NumOutputs, bool a_FS_NEAT,
     #             ActivationFunction a_OutputActType,
     #             ActivationFunction a_HiddenActType,
-    #             uint a_SeedType,
+    #             uint a_SeedType, // 1 -> use a_NumHidden, 0 -> ignore a_NumHidden
     #             Parameters a_Parameters);
-    g = NEAT.Genome(0, 3, 0, 1, False, NEAT.ActivationFunction.UNSIGNED_SIGMOID, NEAT.ActivationFunction.UNSIGNED_SIGMOID, 0, params)
+    g = NEAT.Genome(0, 3, 0, 1, False, NEAT.ActivationFunction.UNSIGNED_SIGMOID, NEAT.ActivationFunction.UNSIGNED_SIGMOID, 1, params)
     pop = NEAT.Population(g, params, True, 1.0)
     
-    
     pool = mpc.Pool(processes = 8)
-    
-    n_generations = 1000
 
     sel_for_intel = np.zeros((n_generations, 1))
     corr_intel_coop = np.zeros((n_generations, 1))
@@ -378,6 +330,37 @@ def run_experiment(save_file=None):
     strat_tftt = np.zeros((n_generations, 1))
     strat_pavlov = np.zeros((n_generations, 1))
 
+    if not save_file is None:
+        sel_for_intel_dset = save_file.create_dataset('sel_for_intel', (n_generations, 1))
+
+        corr_intel_coop_dset = save_file.create_dataset('corr/intel_coop', (n_generations, 1))
+        corr_intel_fit_dset = save_file.create_dataset('corr/intel_fit', (n_generations, 1))
+        corr_coop_fit_dset = save_file.create_dataset('corr/coop_fit', (n_generations, 1))
+
+        fit_max_dset = save_file.create_dataset('fit/max', (n_generations, 1))
+        fit_min_dset = save_file.create_dataset('fit/min', (n_generations, 1))
+        fit_mean_dset= save_file.create_dataset('fit/mean', (n_generations, 1))
+        fit_std_dset = save_file.create_dataset('fit/std', (n_generations, 1))
+
+        intel_max_dset = save_file.create_dataset('intel/max', (n_generations, 1))
+        intel_min_dset = save_file.create_dataset('intel/min', (n_generations, 1))
+        intel_mean_dset= save_file.create_dataset('intel/mean', (n_generations, 1))
+        intel_std_dset = save_file.create_dataset('intel/std', (n_generations, 1))
+
+        coop_max_dset = save_file.create_dataset('coop/max', (n_generations, 1))
+        coop_min_dset = save_file.create_dataset('coop/min', (n_generations, 1))
+        coop_mean_dset= save_file.create_dataset('coop/mean', (n_generations, 1))
+        coop_std_dset = save_file.create_dataset('coop/std', (n_generations, 1))
+
+        strat_ac_dset = save_file.create_dataset('strategy/ac', (n_generations, 1))
+        strat_ad_dset = save_file.create_dataset('strategy/ad', (n_generations, 1))
+        strat_tft_dset = save_file.create_dataset('strategy/tft', (n_generations, 1))
+        strat_tftt_dset = save_file.create_dataset('strategy/tftt', (n_generations, 1))
+        strat_pavlov_dset = save_file.create_dataset('strategy/pavlov', (n_generations, 1))
+
+        n_completed_dset = save_file.create_dataset('n_generations', (1,))
+        n_completed_dset[0] = n_generations
+
     for generation in range(n_generations):
         genome_list = NEAT.GetGenomeList(pop)
 
@@ -388,8 +371,8 @@ def run_experiment(save_file=None):
             new_list.extend(genome_list[i+1:])
             genome_lol.append(new_list)
 
-        fitness_list = NEAT.EvaluateGenomeList_Parallel(genome_lol, evaluate_ipd)
-        #fitness_list = NEAT.EvaluateGenomeList_Serial(genome_lol, evaluate_ipd)
+        fitness_list = NEAT.EvaluateGenomeList_Parallel(genome_lol, evaluate_iterated_game)
+        #fitness_list = NEAT.EvaluateGenomeList_Serial(genome_lol, evaluate_iterated_game)
         NEAT.ZipFitness(genome_list, fitness_list)
         
         best = max([x.GetLeader().GetFitness() for x in pop.Species])
@@ -461,59 +444,71 @@ def run_experiment(save_file=None):
                 np.mean(cooperation_freq),
                 np.std(cooperation_freq))
         print ''
+
+        if not save_file is None and not (generation + 1) % save_freq:
+            sel_for_intel_dset[...] = sel_for_intel
+
+            corr_intel_coop_dset[...] = corr_intel_coop
+            corr_intel_fit_dset[...] = corr_intel_fit
+            corr_coop_fit_dset[...] = corr_coop_fit
+
+            fit_max_dset[...] = fit_max
+            fit_min_dset[...] = fit_min
+            fit_mean_dset[...] = fit_mean
+            fit_std_dset[...] = fit_std
+
+            intel_max_dset[...] = intel_max
+            intel_min_dset[...] = intel_min
+            intel_mean_dset[...] = intel_mean
+            intel_std_dset[...] = intel_std
+
+            coop_max_dset[...] = coop_max
+            coop_min_dset[...] = coop_min
+            coop_mean_dset[...] = coop_mean
+            coop_std_dset[...] = coop_std
+
+            strat_ac_dset[...] = strat_ac
+            strat_ad_dset[...] = strat_ad
+            strat_tft_dset[...] = strat_tft
+            strat_tftt_dset[...] = strat_tftt
+            strat_pavlov_dset[...] = strat_pavlov
+
+            n_completed_dset[0] = generation + 1
+
+            save_file.flush()
             
         pop.Epoch()
 
     # Create h5py datasets
     if not save_file is None:
-        sel_for_intel_dset = save_file.create_dataset('sel_for_intel', (n_generations, 1))
         sel_for_intel_dset[...] = sel_for_intel
 
-        corr_intel_coop_dset = save_file.create_dataset('corr/intel_coop', (n_generations, 1))
         corr_intel_coop_dset[...] = corr_intel_coop
-        corr_intel_fit_dset = save_file.create_dataset('corr/intel_fit', (n_generations, 1))
         corr_intel_fit_dset[...] = corr_intel_fit
-        corr_coop_fit_dset = save_file.create_dataset('corr/coop_fit', (n_generations, 1))
         corr_coop_fit_dset[...] = corr_coop_fit
 
-
-        fit_max_dset = save_file.create_dataset('fit/max', (n_generations, 1))
         fit_max_dset[...] = fit_max
-        fit_min_dset = save_file.create_dataset('fit/min', (n_generations, 1))
         fit_min_dset[...] = fit_min
-        fit_mean_dset= save_file.create_dataset('fit/mean', (n_generations, 1))
         fit_mean_dset[...] = fit_mean
-        fit_std_dset = save_file.create_dataset('fit/std', (n_generations, 1))
         fit_std_dset[...] = fit_std
 
-        intel_max_dset = save_file.create_dataset('intel/max', (n_generations, 1))
         intel_max_dset[...] = intel_max
-        intel_min_dset = save_file.create_dataset('intel/min', (n_generations, 1))
         intel_min_dset[...] = intel_min
-        intel_mean_dset= save_file.create_dataset('intel/mean', (n_generations, 1))
         intel_mean_dset[...] = intel_mean
-        intel_std_dset = save_file.create_dataset('intel/std', (n_generations, 1))
         intel_std_dset[...] = intel_std
 
-        coop_max_dset = save_file.create_dataset('coop/max', (n_generations, 1))
         coop_max_dset[...] = coop_max
-        coop_min_dset = save_file.create_dataset('coop/min', (n_generations, 1))
         coop_min_dset[...] = coop_min
-        coop_mean_dset= save_file.create_dataset('coop/mean', (n_generations, 1))
         coop_mean_dset[...] = coop_mean
-        coop_std_dset = save_file.create_dataset('coop/std', (n_generations, 1))
         coop_std_dset[...] = coop_std
 
-        strat_ac_dset = save_file.create_dataset('strategy/ac', (n_generations, 1))
         strat_ac_dset[...] = strat_ac
-        strat_ad_dset = save_file.create_dataset('strategy/ad', (n_generations, 1))
         strat_ad_dset[...] = strat_ad
-        strat_tft_dset = save_file.create_dataset('strategy/tft', (n_generations, 1))
         strat_tft_dset[...] = strat_tft
-        strat_tftt_dset = save_file.create_dataset('strategy/tftt', (n_generations, 1))
         strat_tftt_dset[...] = strat_tftt
-        strat_pavlov_dset = save_file.create_dataset('strategy/pavlov', (n_generations, 1))
         strat_pavlov_dset[...] = strat_pavlov
+
+        n_completed_dset[0] = n_generations
 
         save_file.close()
 
@@ -521,7 +516,90 @@ def run_experiment(save_file=None):
 
 
 if __name__ == '__main__':
-    save_file = h5py.File('results.h5', 'w')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-g', '--generations',
+                        help='Number of generations to run the simulation',
+                        dest='n_generations',
+                        type=int,
+                        required=True,
+                        action='store')
+    parser.add_argument('--save-freq',
+                        help='How many generations between saving partial results',
+                        dest='save_freq',
+                        type=int,
+                        default=10,
+                        required=False,
+                        action='store')
+    parser.add_argument('-f', '--save-fname',
+                        help='Filename to save results to (HDF5 file)',
+                        dest='save_fname',
+                        required=True,
+                        action='store')
+    parser.add_argument('-p', '--params-fname',
+                        help='Filename to load simulation params from',
+                        dest='params_fname',
+                        required=False,
+                        action='store')
+    parser.add_argument('-i', '--intel-penalty',
+                        help='Coefficient of intelligence (# neurons) in fitness calculation',
+                        dest='intel_penalty',
+                        type=float,
+                        default=0.01,
+                        required=False,
+                        action='store')
+
+    game_type_grp = parser.add_mutually_exclusive_group(required=True)
+    game_type_grp.add_argument('--ipd',
+                               help='Have individuals play the iterated prisoner\'s dilemma',
+                               dest='ipd',
+                               action='store_true')
+    game_type_grp.add_argument('--isd',
+                               help='Have individuals play the iterated snowdrift game',
+                               dest='isd',
+                               action='store_true')
+    game_type_grp.add_argument('--custom',
+                               help='Have individuals play a game with custom payoffs\n\
+                                     (order: T (D), R (MC), P (MD), S (C))',
+                               dest='custom_payoffs',
+                               type=int,
+                               nargs=4,
+                               action='store')
+    args = parser.parse_args()
+
+    #save_file = h5py.File('test.h5', 'w')
+    save_file = h5py.File(args.save_fname, 'w')
+
+    params = NEAT.Parameters()
+    if args.params_fname is not None:
+        params.Load(args.params_fname)
+
+    if args.intel_penalty is not None:
+        INTEL_PENALTY = args.intel_penalty
+
+    if args.ipd:
+        # T > R > P > S
+        DEFECTOR_PAYOFF           = 7 # T
+        MUTUAL_COOPERATION_PAYOFF = 6 # R
+        MUTUAL_DEFECTION_PAYOFF   = 2 # P
+        COOPERATOR_PAYOFF         = 1 # S
+    elif args.isd:
+        # T > R > S > P
+        DEFECTOR_PAYOFF           = 8 # T
+        MUTUAL_COOPERATION_PAYOFF = 5 # R
+        MUTUAL_DEFECTION_PAYOFF   = 1 # P
+        COOPERATOR_PAYOFF         = 2 # S
+    else:
+        # Custom payoffs
+        DEFECTOR_PAYOFF           = args.custom_payoffs[0] # T
+        MUTUAL_COOPERATION_PAYOFF = args.custom_payoffs[1] # R
+        MUTUAL_DEFECTION_PAYOFF   = args.custom_payoffs[2] # P
+        COOPERATOR_PAYOFF         = args.custom_payoffs[3] # S
+
+    PAYOFFS = [[MUTUAL_DEFECTION_PAYOFF, DEFECTOR_PAYOFF],
+               [COOPERATOR_PAYOFF, MUTUAL_COOPERATION_PAYOFF]]
+
+    rng = NEAT.RNG()
+    rng.TimeSeed()
 
     # Run experiment.
-    run_experiment(save_file=save_file)
+    run_experiment(args.n_generations, params, args.save_freq, save_file=save_file)
