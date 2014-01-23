@@ -561,6 +561,7 @@ if __name__ == '__main__':
                                help='Have individuals play a game with custom payoffs\n\
                                      (order: T (D), R (MC), P (MD), S (C))',
                                dest='custom_payoffs',
+                               metavar=('T', 'R', 'P', 'S'),
                                type=int,
                                nargs=4,
                                action='store')
