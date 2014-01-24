@@ -42,6 +42,7 @@ function [] = plot_results(fname, smooth_factor)
     title('Correlations');
     xlabel('Time (Generations)');
     ylabel('Pearsons CC');
+    grid on;
 
     figure(5);
     clf;
@@ -60,6 +61,7 @@ function [] = plot_results(fname, smooth_factor)
     title('Strategy Distributions');
     xlabel('Time (Generations)');
     ylabel('Percentage of Individuals');
+    grid on;
 
     figure(6);
     clf;
@@ -69,6 +71,7 @@ function [] = plot_results(fname, smooth_factor)
     legend({'sel for intel'});
     title('Selection for Intelligence');
     xlabel('Time (Generations)');
+    grid on;
 
 end
 
@@ -87,6 +90,7 @@ function [] = plot_set(dname, fig, smooth_factor, dmax, dmin, dmean, dstd)
     xlabel('Time (Generations)');
     ylabel(dname);
     legend({'mean+/-std', 'mean', 'max', 'min'}, 'Location', 'Best');
+    grid on;
 end
 
 function [xs, ys] = get_std_area(dmean, dstd, smooth_factor)
