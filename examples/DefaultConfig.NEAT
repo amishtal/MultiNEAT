@@ -2,6 +2,8 @@
 // Basic parameters
 ////////////////////
 
+NEAT_ParametersStart
+
 // Size of population
 PopulationSize  300
 
@@ -311,3 +313,6 @@ CompatTreshChangeInterval_Generations  1
 // Per how many evaluations to change the treshold
 // (used in steady state mode)
 CompatTreshChangeInterval_Evaluations  10
+
+NEAT_ParametersEnd
+
