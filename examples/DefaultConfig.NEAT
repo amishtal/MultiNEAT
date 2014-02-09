@@ -1,5 +1,8 @@
 ////////////////////
 // Basic parameters
+//
+// NOTE: Every parameter name should appear AT MOST
+//       once in this file!!!
 ////////////////////
 
 NEAT_ParametersStart
@@ -8,7 +11,7 @@ NEAT_ParametersStart
 PopulationSize  300
 
 // If true, this enables dynamic compatibility thresholding
-// It will keep the number of species between MinSpecies and MaxSpecies
+// It will keep the number of species in a specified range.
 DynamicCompatibility  true
 
 // Minimum number of species
@@ -77,7 +80,8 @@ MultipointCrossoverRate  0.75
 // Performing roulette wheel selection or not?
 RouletteWheelSelection  false
 
-
+// Guarantee survival of most fit individual?
+KeepChamp  true
 
 
 
@@ -226,7 +230,7 @@ MaxActivationB  0.0
 TimeConstantMutationMaxPower  0.0
 
 // Maximum magnitude for biases perturbation
-BiasMutationMaxPower  WeightMutationMaxPower
+BiasMutationMaxPower  1.0
 
 // Probability for a baby's neuron time constant values to be mutated
 MutateNeuronTimeConstantsProb  0.0

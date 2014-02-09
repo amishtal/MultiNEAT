@@ -353,7 +353,7 @@ void Species::Reproduce(Population &a_Pop, Parameters& a_Parameters, RNG& a_RNG)
     while(t_offspring_count--)
     {
         // if the champ was not chosen, do it now..
-        if (!t_champ_chosen)
+        if (!t_champ_chosen && a_Parameters.KeepChamp)
         {
             t_baby = m_Individuals[0];
             t_champ_chosen = true;

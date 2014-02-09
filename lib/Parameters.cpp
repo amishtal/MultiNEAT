@@ -127,6 +127,8 @@ void Parameters::Reset()
     // Performing roulette wheel selection or not?
     RouletteWheelSelection = false;
 
+    // Guarantee that the champ (most fit individual) always survives?
+    KeepChamp = true;
 
 
 
@@ -476,6 +478,15 @@ int Parameters::Load(std::ifstream& a_DataFile)
                 RouletteWheelSelection = false;
         }
 
+        if (s == "KeepChamp")
+        {
+            a_DataFile >> tf;
+            if (tf == "true" || tf == "1" || tf == "1.0")
+                KeepChamp = true;
+            else
+                KeepChamp = false;
+        }
+
         if (s == "PhasedSearching")
         {
             a_DataFile >> tf;
@@ -724,7 +735,7 @@ int Parameters::Load(const char* a_FileName)
 {
     std::ifstream data(a_FileName);
     if (!data.is_open())
-        return 0;
+        return -1;
 
     int result = Load(data);
     data.close();
@@ -764,6 +775,7 @@ void Parameters::Save(FILE* a_fstream)
     fprintf(a_fstream, "InterspeciesCrossoverRate %3.20f\n", InterspeciesCrossoverRate);
     fprintf(a_fstream, "MultipointCrossoverRate %3.20f\n", MultipointCrossoverRate);
     fprintf(a_fstream, "RouletteWheelSelection %s\n", RouletteWheelSelection==true?"true":"false");
+    fprintf(a_fstream, "KeepChamp %s\n", KeepChamp==true?"true":"false");
     fprintf(a_fstream, "PhasedSearching %s\n", PhasedSearching==true?"true":"false");
     fprintf(a_fstream, "DeltaCoding %s\n", DeltaCoding==true?"true":"false");
     fprintf(a_fstream, "SimplifyingPhaseMPCTreshold %d\n", SimplifyingPhaseMPCTreshold);

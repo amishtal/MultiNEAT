@@ -129,6 +129,9 @@ public:
     // Performing roulette wheel selection or not?
     bool RouletteWheelSelection;
 
+    // Guarantee that the most fit individual always survives.
+    bool KeepChamp;
+
     ///////////////////////////////////
     // Phased Search parameters   //
     ///////////////////////////////////

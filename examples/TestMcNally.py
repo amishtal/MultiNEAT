@@ -572,7 +572,10 @@ if __name__ == '__main__':
 
     params = NEAT.Parameters()
     if args.params_fname is not None:
-        params.Load(args.params_fname)
+        ret_val = params.Load(args.params_fname)
+        if ret_val < 0:
+            print 'Parameter file not found! Exiting...'
+            exit()
 
     if args.intel_penalty is not None:
         INTEL_PENALTY = args.intel_penalty
