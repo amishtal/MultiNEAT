@@ -117,6 +117,9 @@ void Parameters::Reset()
     // be performed after crossover. 1.0 = 100% (always mutate after crossover)
     OverallMutationRate = 0.25;
 
+    // Only allow one mutation to occur at a time.
+    MutuallyExclusiveMutations = true;
+
     // Probability for a baby to result from inter-species mating.
     InterspeciesCrossoverRate = 0.001;
 
@@ -463,6 +466,15 @@ int Parameters::Load(std::ifstream& a_DataFile)
         if (s == "OverallMutationRate")
             a_DataFile >> OverallMutationRate;
 
+        if (s == "MutuallyExclusiveMutations")
+        {
+            a_DataFile >> tf;
+            if (tf == "true" || tf == "1" || tf == "1.0")
+                MutuallyExclusiveMutations = true;
+            else
+                MutuallyExclusiveMutations = false;
+        }
+
         if (s == "InterspeciesCrossoverRate")
             a_DataFile >> InterspeciesCrossoverRate;
 
@@ -772,6 +784,7 @@ void Parameters::Save(FILE* a_fstream)
     fprintf(a_fstream, "SurvivalRate %3.20f\n", SurvivalRate);
     fprintf(a_fstream, "CrossoverRate %3.20f\n", CrossoverRate);
     fprintf(a_fstream, "OverallMutationRate %3.20f\n", OverallMutationRate);
+    fprintf(a_fstream, "MutuallyExclusiveMutations %s\n", MutuallyExclusiveMutations==true?"true":"false");
     fprintf(a_fstream, "InterspeciesCrossoverRate %3.20f\n", InterspeciesCrossoverRate);
     fprintf(a_fstream, "MultipointCrossoverRate %3.20f\n", MultipointCrossoverRate);
     fprintf(a_fstream, "RouletteWheelSelection %s\n", RouletteWheelSelection==true?"true":"false");

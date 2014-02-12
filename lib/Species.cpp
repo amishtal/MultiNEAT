@@ -725,6 +725,127 @@ Genome Species::ReproduceOne(Population& a_Pop, Parameters& a_Parameters, RNG& a
 // Mutates a genome
 void Species::MutateGenome( bool t_baby_is_clone, Population &a_Pop, Genome &t_baby, Parameters& a_Parameters, RNG& a_RNG )
 {
+    if (a_Parameters.MutuallyExclusiveMutations) {
+        MutateGenomeMutualExclusion(t_baby_is_clone, a_Pop, t_baby, a_Parameters, a_RNG);
+    } else {
+        MutateGenomeMutualCompatibility(t_baby_is_clone, a_Pop, t_baby, a_Parameters, a_RNG);
+    }
+}
+
+
+void Species::MutateGenomeMutualCompatibility( bool t_baby_is_clone, Population &a_Pop, Genome &t_baby, Parameters& a_Parameters, RNG& a_RNG )
+{
+    bool t_mutation_success = false;
+
+    // Don't add nodes or links if simplifying.
+    if ( !(a_Pop.GetSearchMode() == SIMPLIFYING) ) {
+        // ADD_NODE;
+        if (a_RNG.RandFloat() < a_Parameters.MutateAddNeuronProb )
+        {
+            t_mutation_success = t_baby.Mutate_AddNeuron(a_Pop.AccessInnovationDatabase(), a_Parameters, a_RNG);
+        }
+
+        // ADD_LINK;
+        if (a_RNG.RandFloat() < a_Parameters.MutateAddLinkProb )
+        {
+            t_mutation_success = t_baby.Mutate_AddLink(a_Pop.AccessInnovationDatabase(), a_Parameters, a_RNG);
+        }
+    }
+
+    // Don't remove nodes or links if complexifying.
+    if ( !(a_Pop.GetSearchMode() == COMPLEXIFYING) ) {
+        // REMOVE_NODE;
+        if (a_RNG.RandFloat() < a_Parameters.MutateRemSimpleNeuronProb )
+        {
+            t_mutation_success = t_baby.Mutate_RemoveSimpleNeuron(a_Pop.AccessInnovationDatabase(), a_RNG);
+        }
+
+        // REMOVE_LINK;
+        if (a_RNG.RandFloat() < a_Parameters.MutateRemLinkProb )
+        {
+            // Keep doing this mutation until it is sure that the baby will not
+            // end up having dead ends or no links
+            Genome t_saved_baby = t_baby;
+            bool t_no_links = false, t_has_dead_ends = false;
+
+            int t_tries = 128;
+            do
+            {
+                t_tries--;
+                if (t_tries <= 0)
+                {
+                    t_saved_baby = t_baby;
+                    break; // give up
+                }
+
+                t_saved_baby = t_baby;
+                t_mutation_success = t_saved_baby.Mutate_RemoveLink(a_RNG);
+
+                t_no_links = t_has_dead_ends = false;
+
+                if (t_saved_baby.NumLinks() == 0)
+                    t_no_links = true;
+
+                t_has_dead_ends = t_saved_baby.HasDeadEnds();
+
+            }
+            while(t_no_links || t_has_dead_ends);
+
+            t_baby = t_saved_baby;
+
+            // debugger trap
+            if (t_baby.NumLinks() == 0)
+            {
+                std::cerr << "No links in baby after mutation" << std::endl;
+            }
+            if (t_baby.HasDeadEnds())
+            {
+                std::cerr << "Dead ends in baby after mutation" << std::endl;
+            }
+        }
+    }
+
+    // CHANGE_ACTIVATION_FUNCTION;
+    if (a_RNG.RandFloat() < a_Parameters.MutateNeuronActivationTypeProb )
+    {
+        t_baby.Mutate_NeuronActivation_Type(a_Parameters, a_RNG);
+    }
+
+    // MUTATE_WEIGHTS;
+    if (a_RNG.RandFloat() < a_Parameters.MutateWeightsProb )
+    {
+        t_baby.Mutate_LinkWeights(a_Parameters, a_RNG);
+    }
+
+    // MUTATE_ACTIVATION_A;
+    if (a_RNG.RandFloat() < a_Parameters.MutateActivationAProb )
+    {
+        t_baby.Mutate_NeuronActivations_A(a_Parameters, a_RNG);
+    }
+
+    // MUTATE_ACTIVATION_B;
+    if (a_RNG.RandFloat() < a_Parameters.MutateActivationBProb )
+    {
+        t_baby.Mutate_NeuronActivations_B(a_Parameters, a_RNG);
+    }
+
+    // MUTATE_TIMECONSTS;
+    if (a_RNG.RandFloat() < a_Parameters.MutateNeuronTimeConstantsProb )
+    {
+        t_baby.Mutate_NeuronTimeConstants(a_Parameters, a_RNG);
+    }
+
+    // MUTATE_BIASES;
+    if (a_RNG.RandFloat() < a_Parameters.MutateNeuronBiasesProb )
+    {
+        t_baby.Mutate_NeuronBiases(a_Parameters, a_RNG);
+    }
+
+}
+
+
+void Species::MutateGenomeMutualExclusion( bool t_baby_is_clone, Population &a_Pop, Genome &t_baby, Parameters& a_Parameters, RNG& a_RNG )
+{
 #if 1
     // NEW version:
     // All mutations are mutually exclusive - can't have 2 mutations at once

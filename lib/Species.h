@@ -169,7 +169,16 @@ public:
     // Reproduction.
     void Reproduce(Population& a_Pop, Parameters& a_Parameters, RNG& a_RNG);
 
+    // Mutates an individual. Calls either 'MutateGenomeMutualCompatibility'
+    // or 'MutateGenomeMutualExclusion'.
     void MutateGenome( bool t_baby_is_clone, Population &a_Pop, Genome &t_baby, Parameters& a_Parameters, RNG& a_RNG);
+
+    // Each mutation type is given a chance to occur.
+    void MutateGenomeMutualCompatibility( bool t_baby_is_clone, Population &a_Pop, Genome &t_baby, Parameters& a_Parameters, RNG& a_RNG);
+
+    // A single mutation occurs, chosen using renormalized mutation
+    // probabilities.
+    void MutateGenomeMutualExclusion( bool t_baby_is_clone, Population &a_Pop, Genome &t_baby, Parameters& a_Parameters, RNG& a_RNG);
 
     // Removes all individuals
     void Clear()

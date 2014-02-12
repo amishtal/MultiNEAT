@@ -70,6 +70,9 @@ CrossoverRate  0.75
 // be performed after crossover. 1.0  100% (always mutate after crossover)
 OverallMutationRate  0.25
 
+// Whether or not to prevent multiple mutations from occurring.
+MutuallyExclusiveMutations  true
+
 // Probability for a baby to result from inter-species mating.
 InterspeciesCrossoverRate  0.0001
 

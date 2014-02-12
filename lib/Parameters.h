@@ -119,6 +119,9 @@ public:
     // be performed after crossover. 1.0 = 100% (always mutate after crossover)
     double OverallMutationRate;
 
+    // Only allow one mutation to occur at a time.
+    double MutuallyExclusiveMutations;
+
     // Probability for a baby to result from inter-species mating.
     double InterspeciesCrossoverRate;
 
